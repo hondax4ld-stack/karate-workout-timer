@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>KARATE WORKOUT TIMER</title>
+
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+<style>
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    padding:10px;
+    font-family:Arial,sans-serif;
+    text-align:center;
+    transition:background-color .3s;
+}
+
+h1{
+    margin:0;
+    font-size:7vw;
+}
+
+#mode{
+    font-size:12vw;
+    font-weight:bold;
+    margin-top:10px;
+}
+
+#timer{
+    font-size:46vw;
+    font-weight:bold;
+    line-height:0.85;
+    margin:0;
+}
+
+#round{
+    font-size:8vw;
+    font-weight:bold;
+    margin:10px 0;
+}
+
+.ready{
+    color:#ff8800;
+}
+
+.kumite{
+    color:#00aa00;
+}
+
+.rest{
+    color:#0066ff;
+}
+
+.warning{
+    color:red !important;
+}
+
+.controls{
+    margin-top:10px;
+}
+
+.controls button{
+    width:44%;
+    height:13vw;
+    font-size:5vw;
+    margin:3px;
+    border:none;
+    border-radius:12px;
+    background:#333;
+    color:white;
+}
+
+.settings{
+    margin-top:15px;
+    padding-top:10px;
+    border-top:1px solid #ccc;
+}
+
+.settings div{
+    margin:10px;
+    font-size:5vw;
+}
+
+.settings input{
+    width:80px;
+    font-size:5vw;
+    text-align:center;
+}
+
+#info{
+    margin-top:10px;
+    color:#666;
+    font-size:3vw;
+}
+
+/* ¡ü«ÅK» */
+
+@media (orientation: landscape){
+
+    h1{
+        font-size:3vw;
+    }
+
+    #mode{
+        font-size:6vw;
+    }
+
+    #timer{
+        font-size:32vw;
+    }
+
+    #round{
+        font-size:3vw;
+    }
+
+    .controls button{
+        width:20vw;
+        height:7vw;
+        font-size:2.5vw;
+    }
+
+    .settings{
+        display:flex;
+        justify-content:center;
+        gap:20px;
+    }
+
+    .settings div{
+        font-size:2.5vw;
+    }
+
+    .settings input{
+        font-size:2.5vw;
+    }
+
+    #info{
+        font-size:1.5vw;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>KARATE WORKOUT TIMER</h1>
+
+<div id="mode" class="ready">READY</div>
+
+<div id="timer">10</div>
+
+<div id="round">ROUND 0</div>
+
+<div class="controls">
+    <button onclick="startTimer()">START</button>
+    <button onclick="stopTimer()">STOP</button><br>
+    <button onclick="resetTimer()">RESET</button>
+    <button onclick="toggleFullscreen()">FULL</button>
+</div>
+
+<div class="settings">
+
+    <div>
+        READY
+        <input type="number" id="readySec" value="10" min="0">
+    </div>
+
+    <div>
+        KUMITE
+        <input type="number" id="workSec" value="45" min="1">
+    </div>
+
+    <div>
+        REST
+        <input type="number" id="restSec" value="30" min="1">
+    </div>
+
+</div>
+
+<div id="info">
+iPhonegpÍuÝè ¨ æÊ\¦Æ¾é³ ¨ ©®bN ¨ Èµvð§
+</div>
+
+<script>
+
+let phase = "READY";
+let remain = 10;
+let round = 0;
+let timerId = null;
+let wakeLock = null;
+
+const audioCtx =
+new (window.AudioContext || window.webkitAudioContext)();
+
+function tone(freq,duration){
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.frequency.value = freq;
+    osc.type = "sine";
+
+    gain.gain.setValueAtTime(0.2,audioCtx.currentTime);
+
+    osc.start();
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioCtx.currentTime + duration / 1000
+    );
+
+    osc.stop(audioCtx.currentTime + duration / 1000);
+}
+
+function beep(){
+    tone(1600,100);
+}
+
+function buzzer(){
+    tone(450,700);
+}
+
+function speak(text){
+
+    speechSynthesis.cancel();
+
+    const msg =
+        new SpeechSynthesisUtterance(text);
+
+    msg.lang = "ja-JP";
+    msg.rate = 1.0;
+    msg.pitch = 1.0;
+    msg.volume = 1.0;
+
+    speechSynthesis.speak(msg);
+}
+
+async function requestWakeLock(){
+
+    try{
+
+        if('wakeLock' in navigator){
+
+            wakeLock =
+                await navigator.wakeLock.request('screen');
+        }
+
+    }catch(err){
+
+        console.log(err);
+    }
+}
+
+document.addEventListener(
+    "visibilitychange",
+    async () => {
+
+        if(
+            wakeLock !== null &&
+            document.visibilityState === "visible"
+        ){
+            await requestWakeLock();
+        }
+    }
+);
+
+function getReady(){
+
+    return parseInt(
+        document.getElementById("readySec").value
+    ) || 10;
+}
+
+function getWork(){
+
+    return parseInt(
+        document.getElementById("workSec").value
+    ) || 45;
+}
+
+function getRest(){
+
+    return parseInt(
+        document.getElementById("restSec").value
+    ) || 30;
+}
+
+function updateDisplay(){
+
+    const mode =
+        document.getElementById("mode");
+
+    const timer =
+        document.getElementById("timer");
+
+    timer.textContent = remain;
+
+    if(remain <= 3){
+        timer.classList.add("warning");
+    }
+    else{
+        timer.classList.remove("warning");
+    }
+
+    switch(phase){
+
+        case "READY":
+
+            mode.textContent = "READY";
+            mode.className = "ready";
+            document.body.style.backgroundColor =
+                "#fff3d6";
+            break;
+
+        case "KUMITE":
+
+            mode.textContent = "KUMITE";
+            mode.className = "kumite";
+            document.body.style.backgroundColor =
+                "#e8ffe8";
+            break;
+
+        case "REST":
+
+            mode.textContent = "REST";
+            mode.className = "rest";
+            document.body.style.backgroundColor =
+                "#e8f2ff";
+            break;
+    }
+
+    document.getElementById("round").textContent =
+        "ROUND " + round;
+}
+
+function switchPhase(){
+
+    buzzer();
+
+    if(phase === "READY"){
+
+        phase = "KUMITE";
+        remain = getWork();
+        round = 1;
+
+        speak("nß");
+    }
+    else if(phase === "KUMITE"){
+
+        phase = "REST";
+        remain = getRest();
+
+        speak("âß");
+    }
+    else{
+
+        phase = "KUMITE";
+        remain = getWork();
+        round++;
+
+        speak("nß");
+    }
+
+    updateDisplay();
+}
+
+function tick(){
+
+    remain--;
+
+    if(remain >= 1 && remain <= 3){
+        beep();
+    }
+
+    if(remain <= 0){
+
+        switchPhase();
+        return;
+    }
+
+    updateDisplay();
+}
+
+function startTimer(){
+
+    if(timerId) return;
+
+    audioCtx.resume();
+
+    requestWakeLock();
+
+    document.querySelector(".settings").style.display = "none";
+    document.getElementById("info").style.display = "none";
+
+    timerId = setInterval(
+        tick,
+        1000
+    );
+}
+
+function stopTimer(){
+
+    clearInterval(timerId);
+
+    timerId = null;
+
+    document.querySelector(".settings").style.display = "";
+    document.getElementById("info").style.display = "";
+}
+
+function resetTimer(){
+
+    stopTimer();
+
+    phase = "READY";
+    remain = getReady();
+    round = 0;
+
+    updateDisplay();
+}
+
+async function toggleFullscreen(){
+
+    try{
+
+        if(!document.fullscreenElement){
+
+            await document.documentElement.requestFullscreen();
+
+            await requestWakeLock();
+        }
+        else{
+
+            await document.exitFullscreen();
+        }
+
+    }catch(e){
+
+        console.log(e);
+    }
+}
+
+resetTimer();
+
+</script>
