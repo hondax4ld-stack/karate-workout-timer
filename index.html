@@ -187,7 +187,7 @@ h1{
 </div>
 
 <div id="info">
-iPhonegpÍuÝè ¨ æÊ\¦Æ¾é³ ¨ ©®bN ¨ Èµvð§
+This is an app created by Yoshihiko Sakai using Copilot.
 </div>
 
 <script>
@@ -326,8 +326,8 @@ function updateDisplay(){
 
         case "KUMITE":
 
-            mode.textContent = "KUMITE";
-            mode.className = "kumite";
+            mode.textContent = "WORKOUT";
+            mode.className = "workout";
             document.body.style.backgroundColor =
                 "#e8ffe8";
             break;
@@ -351,26 +351,26 @@ function switchPhase(){
 
     if(phase === "READY"){
 
-        phase = "KUMITE";
+        phase = "WORKOUT";
         remain = getWork();
         round = 1;
 
-        speak("nß");
+        speak("Hajime");
     }
-    else if(phase === "KUMITE"){
+    else if(phase === "WORKOUT"){
 
         phase = "REST";
         remain = getRest();
 
-        speak("âß");
+        speak("Yame");
     }
     else{
 
-        phase = "KUMITE";
+        phase = "WORKOUT";
         remain = getWork();
         round++;
 
-        speak("nß");
+        speak("Hajime");
     }
 
     updateDisplay();
